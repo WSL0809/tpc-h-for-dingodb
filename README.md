@@ -1,35 +1,41 @@
+# TPC-H MySQL 测试指南
 
-  # 数据生成
+## 数据生成
 
-  1. 生成所有表数据
+### 1. 生成所有表数据
 
-  cd /Users/wangshilong/Downloads/TPC-H\ V3.0.1/dbgen
+```bash
+cd /Users/wangshilong/Downloads/TPC-H\ V3.0.1/dbgen
 
-  # 生成所有表 (scale factor 0.01 - 小负载)
-  ./dbgen -s 0.01 -f
+# 生成所有表 (scale factor 0.01 - 小负载)
+./dbgen -s 0.01 -f
 
-  # 或者生成单个表
-  ./dbgen -T r -f    # REGION
-  ./dbgen -T n -f    # NATION  
-  ./dbgen -T s -f    # SUPPLIER
-  ./dbgen -T c -f    # CUSTOMER
-  ./dbgen -T P -f    # PART
-  ./dbgen -T S -f    # PARTSUPP
-  ./dbgen -T O -f    # ORDERS
-  ./dbgen -T L -f    # LINEITEM
+# 或者生成单个表
+./dbgen -T r -f    # REGION
+./dbgen -T n -f    # NATION  
+./dbgen -T s -f    # SUPPLIER
+./dbgen -T c -f    # CUSTOMER
+./dbgen -T P -f    # PART
+./dbgen -T S -f    # PARTSUPP
+./dbgen -T O -f    # ORDERS
+./dbgen -T L -f    # LINEITEM
+```
 
-  2. 验证生成的文件
+### 2. 验证生成的文件
 
-  ls -la *.tbl
-  wc -l *.tbl  # 查看每个表的记录数
+```bash
+ls -la *.tbl
+wc -l *.tbl  # 查看每个表的记录数
+```
 
-  数据库操作
+## 数据库操作
 
-  1. 创建数据库和表结构
+### 1. 创建数据库和表结构
 
-  mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "CREATE DATABASE IF NOT EXISTS tpch;"
+```bash
+mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "CREATE DATABASE IF NOT EXISTS tpch;"
 
-  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch << 'EOF'
+mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch << 'EOF'
   CREATE TABLE IF NOT EXISTS REGION (
       R_REGIONKEY INT PRIMARY KEY,
       R_NAME VARCHAR(25) NOT NULL,
@@ -125,9 +131,12 @@
       FOREIGN KEY (L_PARTKEY) REFERENCES PART(P_PARTKEY),
       FOREIGN KEY (L_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY)
   );
-  EOF
+EOF
+```
 
-  2. 导入数据 (按依赖顺序)
+### 2. 导入数据 (按依赖顺序)
+
+```bash
 
   # 按外键依赖顺序导入
   mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < region.tbl
@@ -137,9 +146,12 @@
   mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < part.tbl
   mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < partsupp.tbl
   mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < orders.tbl
-  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < lineitem.tbl
+mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < lineitem.tbl
+```
 
-  3. 验证数据导入
+### 3. 验证数据导入
+
+```bash
 
   mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch -e "
   SELECT 'REGION' as table_name, COUNT(*) as record_count FROM REGION
@@ -150,12 +162,14 @@
   UNION ALL SELECT 'PARTSUPP', COUNT(*) FROM PARTSUPP
   UNION ALL SELECT 'ORDERS', COUNT(*) FROM ORDERS
   UNION ALL SELECT 'LINEITEM', COUNT(*) FROM LINEITEM;"
+```
 
-  TPC-H查询测试
+## TPC-H查询测试
 
-  1. 生成标准查询
+### 1. 生成标准查询
 
-  export DSS_QUERY=./queries
+```bash
+export DSS_QUERY=./queries
 
   # 生成单个查询
   ./qgen -d 1    # Query 1
@@ -163,82 +177,105 @@
   ./qgen -d 10   # Query 10
 
   # 生成所有22个查询
-  for i in {1..22}; do
-      ./qgen -d $i > query_$i.sql
-  done
+for i in {1..22}; do
+    ./qgen -d $i > query_$i.sql
+done
+```
 
-  2. 手动执行测试查询
+### 2. 手动执行测试查询
 
-  Query 1 - 价格汇总报告:
-  SELECT
-      L_RETURNFLAG,
-      L_LINESTATUS,
-      COUNT(*) as count_order,
-      SUM(L_QUANTITY) as sum_qty,
-      AVG(L_EXTENDEDPRICE) as avg_price
-  FROM LINEITEM
-  WHERE L_SHIPDATE <= '1998-09-02'
-  GROUP BY L_RETURNFLAG, L_LINESTATUS
-  ORDER BY L_RETURNFLAG, L_LINESTATUS;
+#### Query 1 - 价格汇总报告:
 
-  Query 3 - 运输优先级:
-  SELECT
-      L_ORDERKEY,
-      SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as revenue,
-      O_ORDERDATE,
-      O_SHIPPRIORITY
-  FROM CUSTOMER, ORDERS, LINEITEM
-  WHERE C_MKTSEGMENT = 'BUILDING'
-      AND C_CUSTKEY = O_CUSTKEY
-      AND L_ORDERKEY = O_ORDERKEY
-      AND O_ORDERDATE < '1995-03-15'
-      AND L_SHIPDATE > '1995-03-15'
-  GROUP BY L_ORDERKEY, O_ORDERDATE, O_SHIPPRIORITY
-  ORDER BY revenue DESC, O_ORDERDATE
-  LIMIT 10;
+```sql
 
-  简单统计查询:
-  -- 按市场细分统计客户
-  SELECT C_MKTSEGMENT, COUNT(*) as customer_count, AVG(C_ACCTBAL) as avg_balance
-  FROM CUSTOMER C
-  JOIN NATION N ON C.C_NATIONKEY = N.N_NATIONKEY
-  JOIN REGION R ON N.N_REGIONKEY = R.R_REGIONKEY
-  GROUP BY C_MKTSEGMENT
-  ORDER BY customer_count DESC;
+SELECT
+    L_RETURNFLAG,
+    L_LINESTATUS,
+    COUNT(*) as count_order,
+    SUM(L_QUANTITY) as sum_qty,
+    AVG(L_EXTENDEDPRICE) as avg_price
+FROM LINEITEM
+WHERE L_SHIPDATE <= '1998-09-02'
+GROUP BY L_RETURNFLAG, L_LINESTATUS
+ORDER BY L_RETURNFLAG, L_LINESTATUS;
+```
 
-  -- 按地区统计供应商
-  SELECT R.R_NAME, COUNT(S.S_SUPPKEY) as supplier_count
-  FROM REGION R
-  JOIN NATION N ON R.R_REGIONKEY = N.N_REGIONKEY
-  JOIN SUPPLIER S ON N.N_NATIONKEY = S.S_NATIONKEY
-  GROUP BY R.R_NAME;
+#### Query 3 - 运输优先级:
 
-  3. 直接连接MySQL执行
+```sql
+SELECT
+    L_ORDERKEY,
+    SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as revenue,
+    O_ORDERDATE,
+    O_SHIPPRIORITY
+FROM CUSTOMER, ORDERS, LINEITEM
+WHERE C_MKTSEGMENT = 'BUILDING'
+    AND C_CUSTKEY = O_CUSTKEY
+    AND L_ORDERKEY = O_ORDERKEY
+    AND O_ORDERDATE < '1995-03-15'
+    AND L_SHIPDATE > '1995-03-15'
+GROUP BY L_ORDERKEY, O_ORDERDATE, O_SHIPPRIORITY
+ORDER BY revenue DESC, O_ORDERDATE
+LIMIT 10;
+```
 
-  # 进入MySQL交互模式
-  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch
+#### 简单统计查询:
 
-  # 在MySQL中执行查询
-  mysql> SHOW TABLES;
-  mysql> SELECT COUNT(*) FROM LINEITEM;
-  mysql> -- 执行上面的任何查询
+```sql
+-- 按市场细分统计客户
+SELECT C_MKTSEGMENT, COUNT(*) as customer_count, AVG(C_ACCTBAL) as avg_balance
+FROM CUSTOMER C
+JOIN NATION N ON C.C_NATIONKEY = N.N_NATIONKEY
+JOIN REGION R ON N.N_REGIONKEY = R.R_REGIONKEY
+GROUP BY C_MKTSEGMENT
+ORDER BY customer_count DESC;
 
-  不同规模测试
+-- 按地区统计供应商
+SELECT R.R_NAME, COUNT(S.S_SUPPKEY) as supplier_count
+FROM REGION R
+JOIN NATION N ON R.R_REGIONKEY = N.N_REGIONKEY
+JOIN SUPPLIER S ON N.N_NATIONKEY = S.S_NATIONKEY
+GROUP BY R.R_NAME;
+```
 
-  更大规模测试
+### 3. 直接连接MySQL执行
 
-  # Scale factor 1 (约1GB数据)
-  ./dbgen -s 1 -f
+```bash
 
-  # 分批生成大表
-  ./dbgen -s 10 -T L -S 1 -C 4 -f   # 第1/4批
-  ./dbgen -s 10 -T L -S 2 -C 4 -f   # 第2/4批
-  ./dbgen -s 10 -T L -S 3 -C 4 -f   # 第3/4批  
-  ./dbgen -s 10 -T L -S 4 -C 4 -f   # 第4/4批
+# 进入MySQL交互模式
+mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch
+```
 
-  性能测试
+在MySQL中执行查询:
+```sql
+SHOW TABLES;
+SELECT COUNT(*) FROM LINEITEM;
+-- 执行上面的任何查询
+```
 
-  # 使用time命令测量查询执行时间
-  time mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < query_1.sql
+## 不同规模测试
 
-  这样你就可以完全手动控制整个TPC-H测试流程了。
+### 更大规模测试
+
+```bash
+# Scale factor 1 (约1GB数据)
+./dbgen -s 1 -f
+
+# 分批生成大表
+./dbgen -s 10 -T L -S 1 -C 4 -f   # 第1/4批
+./dbgen -s 10 -T L -S 2 -C 4 -f   # 第2/4批
+./dbgen -s 10 -T L -S 3 -C 4 -f   # 第3/4批  
+./dbgen -s 10 -T L -S 4 -C 4 -f   # 第4/4批
+```
+
+### 性能测试
+
+```bash
+
+# 使用time命令测量查询执行时间
+time mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < query_1.sql
+```
+
+---
+
+这样你就可以完全手动控制整个TPC-H测试流程了！
