@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: tpch-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: tpch
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql-scripts:/docker-entrypoint-initdb.d
+    command: --default-authentication-plugin=mysql_native_password --innodb-buffer-pool-size=1G
+    networks:
+      - tpch-network
+
+  tpch:
+    build: .
+    container_name: tpch-generator
+    depends_on:
+      - mysql
+    volumes:
+      - ./dbgen:/tpch/dbgen
+      - ./generated-data:/tpch/data
+    networks:
+      - tpch-network
+    stdin_open: true
+    tty: true
+
+volumes:
+  mysql_data:
+
+networks:
+  tpch-network:
+    driver: bridge

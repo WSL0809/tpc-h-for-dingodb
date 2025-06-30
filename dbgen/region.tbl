@@ -1,0 +1,5 @@
+INSERT INTO REGION (R_REGIONKEY, R_NAME, R_COMMENT) VALUES (0, 'AFRICA', 'lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to ');
+INSERT INTO REGION (R_REGIONKEY, R_NAME, R_COMMENT) VALUES (1, 'AMERICA', 'hs use ironic, even requests. s');
+INSERT INTO REGION (R_REGIONKEY, R_NAME, R_COMMENT) VALUES (2, 'ASIA', 'ges. thinly even pinto beans ca');
+INSERT INTO REGION (R_REGIONKEY, R_NAME, R_COMMENT) VALUES (3, 'EUROPE', 'ly final courts cajole furiously final excuse');
+INSERT INTO REGION (R_REGIONKEY, R_NAME, R_COMMENT) VALUES (4, 'MIDDLE EAST', 'uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl');
