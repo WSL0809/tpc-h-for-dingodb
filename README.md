@@ -1,0 +1,244 @@
+
+  # 数据生成
+
+  1. 生成所有表数据
+
+  cd /Users/wangshilong/Downloads/TPC-H\ V3.0.1/dbgen
+
+  # 生成所有表 (scale factor 0.01 - 小负载)
+  ./dbgen -s 0.01 -f
+
+  # 或者生成单个表
+  ./dbgen -T r -f    # REGION
+  ./dbgen -T n -f    # NATION  
+  ./dbgen -T s -f    # SUPPLIER
+  ./dbgen -T c -f    # CUSTOMER
+  ./dbgen -T P -f    # PART
+  ./dbgen -T S -f    # PARTSUPP
+  ./dbgen -T O -f    # ORDERS
+  ./dbgen -T L -f    # LINEITEM
+
+  2. 验证生成的文件
+
+  ls -la *.tbl
+  wc -l *.tbl  # 查看每个表的记录数
+
+  数据库操作
+
+  1. 创建数据库和表结构
+
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "CREATE DATABASE IF NOT EXISTS tpch;"
+
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch << 'EOF'
+  CREATE TABLE IF NOT EXISTS REGION (
+      R_REGIONKEY INT PRIMARY KEY,
+      R_NAME VARCHAR(25) NOT NULL,
+      R_COMMENT VARCHAR(152)
+  );
+
+  CREATE TABLE IF NOT EXISTS NATION (
+      N_NATIONKEY INT PRIMARY KEY,
+      N_NAME VARCHAR(25) NOT NULL,
+      N_REGIONKEY INT NOT NULL,
+      N_COMMENT VARCHAR(152),
+      FOREIGN KEY (N_REGIONKEY) REFERENCES REGION(R_REGIONKEY)
+  );
+
+  CREATE TABLE IF NOT EXISTS SUPPLIER (
+      S_SUPPKEY INT PRIMARY KEY,
+      S_NAME VARCHAR(25) NOT NULL,
+      S_ADDRESS VARCHAR(40) NOT NULL,
+      S_NATIONKEY INT NOT NULL,
+      S_PHONE VARCHAR(15) NOT NULL,
+      S_ACCTBAL DECIMAL(15,2) NOT NULL,
+      S_COMMENT VARCHAR(101),
+      FOREIGN KEY (S_NATIONKEY) REFERENCES NATION(N_NATIONKEY)
+  );
+
+  CREATE TABLE IF NOT EXISTS CUSTOMER (
+      C_CUSTKEY INT PRIMARY KEY,
+      C_NAME VARCHAR(25) NOT NULL,
+      C_ADDRESS VARCHAR(40) NOT NULL,
+      C_NATIONKEY INT NOT NULL,
+      C_PHONE VARCHAR(15) NOT NULL,
+      C_ACCTBAL DECIMAL(15,2) NOT NULL,
+      C_MKTSEGMENT VARCHAR(10) NOT NULL,
+      C_COMMENT VARCHAR(117),
+      FOREIGN KEY (C_NATIONKEY) REFERENCES NATION(N_NATIONKEY)
+  );
+
+  CREATE TABLE IF NOT EXISTS PART (
+      P_PARTKEY INT PRIMARY KEY,
+      P_NAME VARCHAR(55) NOT NULL,
+      P_MFGR VARCHAR(25) NOT NULL,
+      P_BRAND VARCHAR(10) NOT NULL,
+      P_TYPE VARCHAR(25) NOT NULL,
+      P_SIZE INT NOT NULL,
+      P_CONTAINER VARCHAR(10) NOT NULL,
+      P_RETAILPRICE DECIMAL(15,2) NOT NULL,
+      P_COMMENT VARCHAR(23)
+  );
+
+  CREATE TABLE IF NOT EXISTS PARTSUPP (
+      PS_PARTKEY INT NOT NULL,
+      PS_SUPPKEY INT NOT NULL,
+      PS_AVAILQTY INT NOT NULL,
+      PS_SUPPLYCOST DECIMAL(15,2) NOT NULL,
+      PS_COMMENT VARCHAR(199),
+      PRIMARY KEY (PS_PARTKEY, PS_SUPPKEY),
+      FOREIGN KEY (PS_PARTKEY) REFERENCES PART(P_PARTKEY),
+      FOREIGN KEY (PS_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY)
+  );
+
+  CREATE TABLE IF NOT EXISTS ORDERS (
+      O_ORDERKEY INT PRIMARY KEY,
+      O_CUSTKEY INT NOT NULL,
+      O_ORDERSTATUS VARCHAR(1) NOT NULL,
+      O_TOTALPRICE DECIMAL(15,2) NOT NULL,
+      O_ORDERDATE DATE NOT NULL,
+      O_ORDERPRIORITY VARCHAR(15) NOT NULL,
+      O_CLERK VARCHAR(15) NOT NULL,
+      O_SHIPPRIORITY INT NOT NULL,
+      O_COMMENT VARCHAR(79),
+      FOREIGN KEY (O_CUSTKEY) REFERENCES CUSTOMER(C_CUSTKEY)
+  );
+
+  CREATE TABLE IF NOT EXISTS LINEITEM (
+      L_ORDERKEY INT NOT NULL,
+      L_PARTKEY INT NOT NULL,
+      L_SUPPKEY INT NOT NULL,
+      L_LINENUMBER INT NOT NULL,
+      L_QUANTITY DECIMAL(15,2) NOT NULL,
+      L_EXTENDEDPRICE DECIMAL(15,2) NOT NULL,
+      L_DISCOUNT DECIMAL(15,2) NOT NULL,
+      L_TAX DECIMAL(15,2) NOT NULL,
+      L_RETURNFLAG VARCHAR(1) NOT NULL,
+      L_LINESTATUS VARCHAR(1) NOT NULL,
+      L_SHIPDATE DATE NOT NULL,
+      L_COMMITDATE DATE NOT NULL,
+      L_RECEIPTDATE DATE NOT NULL,
+      L_SHIPINSTRUCT VARCHAR(25) NOT NULL,
+      L_SHIPMODE VARCHAR(10) NOT NULL,
+      L_COMMENT VARCHAR(44),
+      PRIMARY KEY (L_ORDERKEY, L_LINENUMBER),
+      FOREIGN KEY (L_ORDERKEY) REFERENCES ORDERS(O_ORDERKEY),
+      FOREIGN KEY (L_PARTKEY) REFERENCES PART(P_PARTKEY),
+      FOREIGN KEY (L_SUPPKEY) REFERENCES SUPPLIER(S_SUPPKEY)
+  );
+  EOF
+
+  2. 导入数据 (按依赖顺序)
+
+  # 按外键依赖顺序导入
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < region.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < nation.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < supplier.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < customer.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < part.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < partsupp.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < orders.tbl
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < lineitem.tbl
+
+  3. 验证数据导入
+
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch -e "
+  SELECT 'REGION' as table_name, COUNT(*) as record_count FROM REGION
+  UNION ALL SELECT 'NATION', COUNT(*) FROM NATION
+  UNION ALL SELECT 'SUPPLIER', COUNT(*) FROM SUPPLIER  
+  UNION ALL SELECT 'CUSTOMER', COUNT(*) FROM CUSTOMER
+  UNION ALL SELECT 'PART', COUNT(*) FROM PART
+  UNION ALL SELECT 'PARTSUPP', COUNT(*) FROM PARTSUPP
+  UNION ALL SELECT 'ORDERS', COUNT(*) FROM ORDERS
+  UNION ALL SELECT 'LINEITEM', COUNT(*) FROM LINEITEM;"
+
+  TPC-H查询测试
+
+  1. 生成标准查询
+
+  export DSS_QUERY=./queries
+
+  # 生成单个查询
+  ./qgen -d 1    # Query 1
+  ./qgen -d 3    # Query 3
+  ./qgen -d 10   # Query 10
+
+  # 生成所有22个查询
+  for i in {1..22}; do
+      ./qgen -d $i > query_$i.sql
+  done
+
+  2. 手动执行测试查询
+
+  Query 1 - 价格汇总报告:
+  SELECT
+      L_RETURNFLAG,
+      L_LINESTATUS,
+      COUNT(*) as count_order,
+      SUM(L_QUANTITY) as sum_qty,
+      AVG(L_EXTENDEDPRICE) as avg_price
+  FROM LINEITEM
+  WHERE L_SHIPDATE <= '1998-09-02'
+  GROUP BY L_RETURNFLAG, L_LINESTATUS
+  ORDER BY L_RETURNFLAG, L_LINESTATUS;
+
+  Query 3 - 运输优先级:
+  SELECT
+      L_ORDERKEY,
+      SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as revenue,
+      O_ORDERDATE,
+      O_SHIPPRIORITY
+  FROM CUSTOMER, ORDERS, LINEITEM
+  WHERE C_MKTSEGMENT = 'BUILDING'
+      AND C_CUSTKEY = O_CUSTKEY
+      AND L_ORDERKEY = O_ORDERKEY
+      AND O_ORDERDATE < '1995-03-15'
+      AND L_SHIPDATE > '1995-03-15'
+  GROUP BY L_ORDERKEY, O_ORDERDATE, O_SHIPPRIORITY
+  ORDER BY revenue DESC, O_ORDERDATE
+  LIMIT 10;
+
+  简单统计查询:
+  -- 按市场细分统计客户
+  SELECT C_MKTSEGMENT, COUNT(*) as customer_count, AVG(C_ACCTBAL) as avg_balance
+  FROM CUSTOMER C
+  JOIN NATION N ON C.C_NATIONKEY = N.N_NATIONKEY
+  JOIN REGION R ON N.N_REGIONKEY = R.R_REGIONKEY
+  GROUP BY C_MKTSEGMENT
+  ORDER BY customer_count DESC;
+
+  -- 按地区统计供应商
+  SELECT R.R_NAME, COUNT(S.S_SUPPKEY) as supplier_count
+  FROM REGION R
+  JOIN NATION N ON R.R_REGIONKEY = N.N_REGIONKEY
+  JOIN SUPPLIER S ON N.N_NATIONKEY = S.S_NATIONKEY
+  GROUP BY R.R_NAME;
+
+  3. 直接连接MySQL执行
+
+  # 进入MySQL交互模式
+  mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch
+
+  # 在MySQL中执行查询
+  mysql> SHOW TABLES;
+  mysql> SELECT COUNT(*) FROM LINEITEM;
+  mysql> -- 执行上面的任何查询
+
+  不同规模测试
+
+  更大规模测试
+
+  # Scale factor 1 (约1GB数据)
+  ./dbgen -s 1 -f
+
+  # 分批生成大表
+  ./dbgen -s 10 -T L -S 1 -C 4 -f   # 第1/4批
+  ./dbgen -s 10 -T L -S 2 -C 4 -f   # 第2/4批
+  ./dbgen -s 10 -T L -S 3 -C 4 -f   # 第3/4批  
+  ./dbgen -s 10 -T L -S 4 -C 4 -f   # 第4/4批
+
+  性能测试
+
+  # 使用time命令测量查询执行时间
+  time mysql -h 127.0.0.1 -P 3306 -u root -p123456 tpch < query_1.sql
+
+  这样你就可以完全手动控制整个TPC-H测试流程了。
