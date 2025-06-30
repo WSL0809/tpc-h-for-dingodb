@@ -18,7 +18,8 @@
       "Bash(for:*)",
       "Bash(do echo \"=== $table ===\")",
       "Bash(wc:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(export:*)"
     ],
     "deny": []
   }

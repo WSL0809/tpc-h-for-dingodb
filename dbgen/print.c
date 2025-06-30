@@ -149,7 +149,11 @@ dbg_print(int format, FILE *target, void *data, int len, int sep)
 		fprintf(target, "%ld.%02ld", dollars, cents);
 		break;
 	case DT_CHR:
+#ifdef MYSQL
+		fprintf(target, "'%c'", *(char *)data);
+#else
 		fprintf(target, "%c", *(char *)data);
+#endif
 		break;
 	}
 
